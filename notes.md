@@ -1,5 +1,12 @@
 # 미니3: [게임 비교 도우미]
 
+## 다시 실행하는 순서
+
+1. 수집 스크립트(01_collect_p1.py · 02_collect.py)는 다시 돌리지 않는다 (사이트 목록이 바뀌어 raw.csv 가 달라짐)
+2. mini3-project 폴더에서 python scripts/03_clean.py → 04_stats.py → 05_hist.py → 06_hist_half.py 순서로 실행
+3. 이어서 python scripts/06_by_category.py → 07_by_category_median.py → 07_export_json.py 순서로 실행
+4. 결과: data/clean.csv · data/data.json · charts/*.png 가 다시 만들어지고, data/raw.csv 는 그대로
+
 ## M02 한 페이지 수집
 
 화면에서 센 항목 8개 = 수집 1행
