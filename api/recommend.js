@@ -28,8 +28,10 @@ function toCondition(v) {
 }
 
 // 두 조건을 모두 만족하는 후보를 가격 낮은 순으로 최대 5개 고른다(index.html 과 같은 규칙)
-function pickCandidates(budget, minRating) {
+function pickCandidates(budget, minRating, excludeFree) {
   return items
+    // 무료 제외를 체크했으면 "무료" 항목은 후보에서 뺀다
+    .filter((it) => !excludeFree || it.price !== "무료")
     .filter((it) => budget === null || priceKey(it.price) <= budget)
     .filter((it) => minRating === null || (typeof it.rating === "number" && it.rating >= minRating))
     .sort((a, b) => priceKey(a.price) - priceKey(b.price))
@@ -78,7 +80,8 @@ module.exports = async (request, response) => {
   const minRating = toCondition(body.minRating);
 
   // 후보를 서버에서 직접 고른다. 0개면 AI 를 부르지 않는다
-  const candidates = pickCandidates(budget, minRating);
+  const excludeFree = body.excludeFree === true;
+  const candidates = pickCandidates(budget, minRating, excludeFree);
   if (candidates.length === 0) {
     return response.status(200).json({ status: "empty" });
   }
@@ -91,7 +94,7 @@ module.exports = async (request, response) => {
 
   // AI 에게 넘길 내용: 조건 두 개와 후보 표
   const input = JSON.stringify({
-    conditions: { budget_won_max: budget, min_rating: minRating },
+    conditions: { budget_won_max: budget, min_rating: minRating, exclude_free: excludeFree },
     candidates,
   });
 

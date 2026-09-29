@@ -72,6 +72,8 @@
   .sort button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
   .filter { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin: 0 0 16px; }
   .filter label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--muted); }
+  .filter label.check { flex-direction: row; align-items: center; gap: 6px; padding-bottom: 8px; color: var(--text); cursor: pointer; }
+  .filter label.check input { width: 16px; height: 16px; min-width: 0; margin: 0; accent-color: var(--accent); }
   .filter input, .filter select {
     min-width: 140px;
     padding: 6px 10px;
@@ -165,6 +167,10 @@
         <option value="5">5</option>
       </select>
     </label>
+    <label class="check">
+      <input type="checkbox" id="excludeFree">
+      무료 제외
+    </label>
     <button type="submit">적용</button>
   </form>
   <div class="ai">
@@ -230,6 +236,11 @@
   // 별점 조건: 없으면 통과, 있으면 data.json 의 숫자 rating 이 그 값 이상일 때만 통과(값이 없으면 통과하지 못함)
   function ratingOk(item, minRating) {
     return minRating === null || (typeof item.rating === "number" && item.rating >= minRating);
+  }
+
+  // 무료 제외 조건: 체크하면 price 가 "무료"인 카드는 통과하지 못함
+  function freeOk(item, excludeFree) {
+    return !excludeFree || item.price !== "무료";
   }
 
   // 가격 낮은 순으로 세운 복사본을 돌려준다(무료=0)
@@ -322,13 +333,16 @@
       // 두 조건을 모두 만족하는 카드만 남기고 가격 낮은 순으로 세운다
       const budgetEl = document.getElementById("budget");
       const ratingEl = document.getElementById("minRating");
+      const freeEl = document.getElementById("excludeFree");
       function applyFilter() {
         // 조건이 바뀌면 이전 추천은 더 이상 맞지 않으므로 지운다
         clearAi();
         const budget = readNumber(budgetEl);
         const minRating = readNumber(ratingEl);
-        current = byPriceAsc(items.filter((it) => budgetOk(it, budget) && ratingOk(it, minRating)));
-        message = current.length === 0 ? emptyMessage(items, budget, minRating) : "";
+        // 무료 제외는 안내 문장을 계산할 때도 바꾸지 않는 조건으로 둔다
+        const pool = items.filter((it) => freeOk(it, freeEl.checked));
+        current = byPriceAsc(pool.filter((it) => budgetOk(it, budget) && ratingOk(it, minRating)));
+        message = current.length === 0 ? emptyMessage(pool, budget, minRating) : "";
         render(current, items.length, message);
         // 가격 낮은 순으로 세웠으니 낮은 순 단추를 눌린 상태로 둔다
         markSort(sortButtons[0]);
@@ -372,7 +386,7 @@
           const res = await fetch("/api/recommend", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ budget: readNumber(budgetEl), minRating: readNumber(ratingEl) }),
+            body: JSON.stringify({ budget: readNumber(budgetEl), minRating: readNumber(ratingEl), excludeFree: freeEl.checked }),
           });
           result = res.ok ? await res.json() : { status: "unavailable" };
         } catch {
@@ -411,6 +425,7 @@
       // 칸의 값이 바뀌면 [적용]을 누르지 않아도 바로 적용한다(예산은 한 글자 칠 때마다, 별점은 고를 때)
       budgetEl.addEventListener("input", applyFilter);
       ratingEl.addEventListener("change", applyFilter);
+      freeEl.addEventListener("change", applyFilter);
 
       // 정렬 단추를 누르면 지금 목록의 복사본을 정렬해 다시 그린다(원래 목록은 그대로 둔다)
       for (const btn of sortButtons) {
