@@ -352,6 +352,8 @@
       const aiButton = document.getElementById("aiButton");
       const aiResult = document.getElementById("aiResult");
       const AI_LABEL = aiButton.textContent;
+      // 후보가 없을 때 [이 조건으로 추천받기]를 누르면 보여 줄 한 줄
+      const NO_CANDIDATE_NOTE = "조건에 맞는 후보가 없어 추천하지 않았습니다. 아래 안내를 보고 조건을 바꿔 주세요";
       // 조건이 바뀔 때마다 늘어나는 번호(늦게 온 옛 답을 버리는 데 쓴다)
       let aiToken = 0;
 
@@ -371,9 +373,9 @@
 
       // [이 조건으로 추천받기]: 지금 조건을 서버 함수에 보내 AI 추천을 받는다
       aiButton.addEventListener("click", async () => {
-        // 후보가 0개면 AI 를 부르지 않고 지금 안내 문장만 둔다
+        // 후보가 0개면 AI 를 부르지 않고, 누른 결과가 보이도록 아래 안내를 가리키는 한 줄을 둔다
         if (current.length === 0) {
-          aiResult.replaceChildren();
+          showNote(NO_CANDIDATE_NOTE);
           return;
         }
         const token = aiToken;
@@ -409,7 +411,7 @@
           const byName = new Map(current.map((it) => [it.name, it]));
           render(order.map((n) => byName.get(n)).filter(Boolean), items.length, message);
         } else if (result.status === "empty") {
-          aiResult.replaceChildren();
+          showNote(NO_CANDIDATE_NOTE);
         } else if (result.status === "ok" || result.status === "unverified") {
           showNote("추천을 확인하지 못했습니다");
         } else {

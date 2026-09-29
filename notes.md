@@ -141,7 +141,7 @@ https://stmcrwt.vercel.app
 - 실패 1 · unverified ↔ "추천을 확인하지 못했습니다" (서버 unverified, 또는 서버는 ok 인데 이름이 화면 후보 앞 5개 밖일 때)
 - 실패 2 · error ↔ "잠시 뒤 다시 눌러 주세요" (열쇠 없음 · Gemini 응답 실패(429 제외) · 네트워크 오류 · 20초 초과 · 답 JSON 못 읽음 · 화면의 fetch 실패)
 - 실패 3 · rate_limited ↔ "잠시 뒤 다시 눌러 주세요" (Gemini 429 한도 초과, 화면 문장은 error 와 같음)
-- no_candidates ↔ 새 문장 없음 (결과 자리를 비우고, 목록 자리의 빈 목록 안내만 남음)
+- no_candidates ↔ "조건에 맞는 후보가 없어 추천하지 않았습니다. 아래 안내를 보고 조건을 바꿔 주세요" (AI 는 부르지 않음, 목록 자리의 빈 목록 안내는 그대로)
 
 
 ## M14 AI 추천 검증
@@ -160,5 +160,37 @@ https://stmcrwt.vercel.app
 | 이름 | 언제 | 매개변수 | 왜 재나 | 분류 | 중복 방지 | 빼는 값 |
 | --- | --- | --- | --- | --- | --- | --- |
 | `filter_game_list`<br>단추 이름 "적용"이 아니라 한 일(목록 거르기)을 동사 filter로 앞에 두었고, 소문자와 밑줄만 쓴 16자라 규칙을 지킴 | 목록 화면에서 조건 칸(예산(원) · 최소 별점 · 무료 제외)에 값을 넣고 **[적용]** 을 누르거나 칸 값이 바뀌어 목록이 다시 그려진 순간 (`applyFilter`) | budget : 20 · min_rating : 4 · exclude_free : false · result_count : (그 조건에서 그려진 카드 수) | result_count가 0인 조건이 자주 나오면 수집 범위(지금 1~3페이지, 49개)를 넓힐지, 빈 목록 안내 문장을 바꿀지 정한다. 예산과 별점 중 어느 칸을 더 많이 쓰는지 보고 칸의 순서를 정한다 | 맞춤 이벤트 | 예산 칸은 한 글자 칠 때마다 적용되므로 "20"을 치면 "2"와 "20"에서 두 번 불린다. 입력이 멈춘 뒤 한 번만 보내고, 바로 전에 보낸 조건 세 개와 같으면 보내지 않는다 | 빈 목록 안내 문장(`emptyMessage`, 게임 이름이 들어감) |
-| `get_recommendation`<br>단추 이름 "이 조건으로 추천받기"가 아니라 한 일(추천 받기)을 동사 get으로 앞에 두었고, 소문자와 밑줄만 쓴 18자이며 `ga_` · `google_` · `firebase_` 로 시작하지 않음 | **[이 조건으로 추천받기]** 를 누른 뒤 결과 자리(`aiResult`)가 바뀐 순간. 추천 이름이 뜨거나, "추천을 확인하지 못했습니다"나 "잠시 뒤 다시 눌러 주세요"가 뜨거나, 후보가 없어 비워진 경우를 모두 포함 | recommend_status : ok · budget : 20 · min_rating : 4 · exclude_free : false · candidate_count : (가격 낮은 순 앞 5개 중 실제 후보 수)<br>recommend_status 값: ok(추천 표시) / unverified(추천을 확인하지 못함, 서버가 ok를 줬지만 화면 후보 5개 밖인 경우 포함) / unavailable(잠시 뒤 다시) / empty · no_candidates(후보 0개) | unavailable 비율로 제한 시간(20초) · 모델 · 한도를 바꿀지 정한다. unverified 비율로 시스템 지시나 답 형식(schema)을 고칠지 정한다 | 맞춤 이벤트 | 기다리는 동안 단추가 막혀 있어 두 번 누를 수 없다. 조건이 바뀌어 옛 답이 버려질 때(`token !== aiToken`)는 보내지 않고, 번호 검사를 통과한 뒤 한 번만 보낸다 | 추천 이유 두 줄(`reasons`), `GEMINI_API_KEY` |
+| `get_recommendation`<br>단추 이름 "이 조건으로 추천받기"가 아니라 한 일(추천 받기)을 동사 get으로 앞에 두었고, 소문자와 밑줄만 쓴 18자이며 `ga_` · `google_` · `firebase_` 로 시작하지 않음 | **[이 조건으로 추천받기]** 를 누른 뒤 결과 자리(`aiResult`)가 바뀐 순간. 추천 이름이 뜨거나, "추천을 확인하지 못했습니다"나 "잠시 뒤 다시 눌러 주세요"가 뜨거나, 후보가 없다는 한 줄이 뜬 경우를 모두 포함 | recommend_status : ok · budget : 20 · min_rating : 4 · exclude_free : false · candidate_count : (가격 낮은 순 앞 5개 중 실제 후보 수)<br>recommend_status 값: ok(추천 표시) / unverified(추천을 확인하지 못함, 서버가 ok를 줬지만 화면 후보 5개 밖인 경우 포함) / unavailable(잠시 뒤 다시) / empty · no_candidates(후보 0개) | unavailable 비율로 제한 시간(20초) · 모델 · 한도를 바꿀지 정한다. unverified 비율로 시스템 지시나 답 형식(schema)을 고칠지 정한다 | 맞춤 이벤트 | 기다리는 동안 단추가 막혀 있어 두 번 누를 수 없다. 조건이 바뀌어 옛 답이 버려질 때(`token !== aiToken`)는 보내지 않고, 번호 검사를 통과한 뒤 한 번만 보낸다 | 추천 이유 두 줄(`reasons`), `GEMINI_API_KEY` |
 | `select_item` | 카드의 **"원래 화면 보기"** 링크를 누른 순간 (새 창으로 `detail_url`이 열림) | item_list_name : ai_pick ("AI 추천" 표시가 붙은 카드) / game_list (그 밖의 카드) · items : [item_name : (카드 제목 글자)] | ai_pick과 game_list의 클릭 수를 비교해 AI 추천 단추와 표시를 계속 둘지 정한다 | GA4 추천 이벤트 | 누를 때마다 한 번씩 센다. `detail_url`이 다른 도메인이면 GA4 향상된 측정의 외부 링크 클릭(`click`)에도 같이 잡히므로, 보고서에서는 한쪽만 센다 | `detail_url`, 추천 이유 문장 |
+
+## M16 오늘 낸 것 모으기
+
+배포 주소 : [https://stmcrwt.vercel.app]
+AI 방식 : [Gemini 무료 API]
+
+| 미션 | 산출물 | 어디에 | 상태 |
+| --- | --- | --- | --- |
+| M09 | 카드 목록 · 개수 · 카드 3장 대조 · 범위 카드 대조 | [저장소](https://github.com/rellion48-crypto/steam_crwing_test) notes.md M09 | 완료 |
+| M10 | 조건 필터 · 후보 없음 안내 · 확인표 3행 | [저장소](https://github.com/rellion48-crypto/steam_crwing_test) notes.md M10 | 완료 |
+| M11 | 근거 영역 · 배포 주소 · 짝 확인 | [배포 주소](https://stmcrwt.vercel.app) · [저장소](https://github.com/rellion48-crypto/steam_crwing_test) notes.md M11 | 완료 |
+| M12 | 명세 카드 · 열쇠 · .env 목록 확인 | [저장소](https://github.com/rellion48-crypto/steam_crwing_test) notes.md M12 | 완료 |
+| M13 | 추천 단추 · 환경변수와 Redeploy · 조건 두 벌 | [배포 주소](https://stmcrwt.vercel.app) · [저장소](https://github.com/rellion48-crypto/steam_crwing_test) notes.md M13 | 완료 |
+| M14 | 검증표 · 틀린 값 한 줄 · 다시 한 번 | [저장소](https://github.com/rellion48-crypto/steam_crwing_test) notes.md M14 | 완료 |
+| M15 | 스킬 가져오기 · 계획서 세 줄 · 성공 행동 | [저장소](https://github.com/rellion48-crypto/steam_crwing_test) notes.md M15 | 완료 |
+| M16 | 소개 글 · 교차 점검 · 제출 카드 | [저장소](https://github.com/rellion48-crypto/steam_crwing_test) README.md · notes.md M16 | 완료 |
+
+## M16 교차 점검
+
+내 주소 : https://stmcrwt.vercel.app
+
+| 경우 | 조건 | 화면에 뜬 것 | 기대한 것 | 같나 |
+|---|---|---|---|---|
+| 정상 | 예산 15000 · 무료 제외 | 후보 24개 · 추천 The Hidden Camp - B-Duke & Dance Music · 이유 숫자가 카드 가격 · 출시일과 같음 | 후보 24개 · 가격 낮은 순 앞 5개 안의 추천 · 이유 숫자가 카드 값과 같음 | 같음 |
+| 후보 최소 (4개) | 예산 2250 · 무료 제외 | 후보 4개 · 추천 The Hidden Camp - B-Duke & Dance Music (목록 카드 안) · 이유 숫자가 카드 값과 같음 | 후보 4개 · 그 4개 중 하나 · 이유 숫자가 카드 값과 같음 | 같음 |
+| 후보 없음 | 예산 2000 · 무료 제외 | 후보 0개 · 「조건에 맞는 카드가 없습니다. 예산만 올리면 가장 싼 후보는 The Hidden Camp - B-Duke & Dance Music(2250원)이고, 별점 조건은 걸려 있지 않습니다.」 · 추천 이름 안 뜸 (짝이 2 · 3번을 한 칸에 답함) | 0개 · 「조건에 맞는 카드가 없습니다.」 안내 · 추천 없음 | 같음 |
+
+짝에게 받은 발견 : 없음 (짝 답 : 「이상한 것이나 헷갈린 점 등 발견한 점은 없었습니다」)
+
+짝의 답에서 내가 본 점 : 후보 없음(예산 2000 · 무료 제외)에서 짝이 카드 자리 칸은 비우고 안내 문장을 「추천 누른 뒤」 칸에 적음 → 후보가 없을 때 추천 단추를 눌러도 아무 변화가 없어, 안내 문장이 어디서 뜬 것인지 헷갈렸을 수 있음
+
+고친 것 : 후보가 없을 때 [이 조건으로 추천받기]를 누르면 결과 자리에 「조건에 맞는 후보가 없어 추천하지 않았습니다. 아래 안내를 보고 조건을 바꿔 주세요」 한 줄이 뜨게 함 (전에는 결과 자리만 비워져 누른 뒤 바뀌는 것이 없었음) → 짝에게 같은 조건으로 다시 확인 부탁
