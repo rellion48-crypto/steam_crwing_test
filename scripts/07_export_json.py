@@ -13,7 +13,7 @@ CLEAN_PATH = BASE / "data" / "clean.csv"
 # 저장할 JSON 파일
 JSON_PATH = BASE / "data" / "data.json"
 # 고를 열과 순서
-COLS = ["name", "price", "scraped_at", "detail_url"]
+COLS = ["name", "price", "release_date", "scraped_at", "detail_url"]
 
 # clean.csv를 값 그대로(글자로, 빈 칸도 빈 문자열로) 읽는다
 df = pd.read_csv(CLEAN_PATH, encoding="utf-8-sig", dtype=str, keep_default_na=False)
