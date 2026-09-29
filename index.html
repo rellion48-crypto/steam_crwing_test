@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>스팀 최신 게임</title>
+<style>
+  /* 색과 간격 값을 한곳에 모아 둔다 */
+  :root {
+    --bg: #f6f6f4;
+    --card: #ffffff;
+    --text: #0b0b0b;
+    --muted: #52514e;
+    --line: #e2e1dc;
+    --accent: #2a78d6;
+  }
+  /* 어두운 화면 설정이면 색을 바꾼다 */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121211;
+      --card: #1a1a19;
+      --text: #ffffff;
+      --muted: #c3c2b7;
+      --line: #2e2e2c;
+      --accent: #6da7ec;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+    line-height: 1.5;
+  }
+  main { max-width: 1080px; margin: 0 auto; padding: 32px 16px 48px; }
+  h1 { margin: 0; font-size: 28px; }
+  #count { margin: 4px 0 24px; color: var(--muted); }
+  #list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 16px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  .name { margin: 0; font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+  .price { margin: 0; font-size: 18px; font-variant-numeric: tabular-nums; }
+  .date { margin: 0; color: var(--muted); font-size: 14px; }
+  .link { margin-top: auto; padding-top: 8px; color: var(--accent); font-size: 14px; }
+  .error { color: var(--muted); }
+  .sort { display: flex; gap: 8px; margin: 0 0 16px; }
+  .sort button {
+    padding: 6px 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--card);
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .sort button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .filter { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin: 0 0 16px; }
+  .filter label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--muted); }
+  .filter input, .filter select {
+    min-width: 140px;
+    padding: 6px 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--text);
+    font: inherit;
+  }
+  .filter button {
+    padding: 7px 18px;
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    background: var(--accent);
+    color: #ffffff;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .evidence { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--line); }
+  .evidence h2 { margin: 0 0 16px; font-size: 22px; }
+  .evidence figure { margin: 0 0 24px; }
+  .evidence img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  .evidence figcaption { margin-top: 8px; }
+  .evidence .limit, .evidence .source { margin: 0 0 8px; color: var(--muted); font-size: 14px; }
+  .empty {
+    grid-column: 1 / -1;
+    padding: 20px;
+    background: var(--card);
+    border: 1px dashed var(--line);
+    border-radius: 10px;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>스팀 최신 게임</h1>
+  <p id="count"></p>
+  <form class="filter" id="filter">
+    <label>예산(원)
+      <input type="number" id="budget" min="0" step="1" inputmode="numeric" placeholder="비우면 조건 없음">
+    </label>
+    <label>최소 별점
+      <select id="minRating">
+        <option value="">조건 없음</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+      </select>
+    </label>
+    <button type="submit">적용</button>
+  </form>
+  <div class="sort" role="group" aria-label="가격 정렬">
+    <button type="button" data-order="asc" aria-pressed="false">가격 낮은 순</button>
+    <button type="button" data-order="desc" aria-pressed="false">가격 높은 순</button>
+  </div>
+  <ul id="list"></ul>
+
+  <section class="evidence" aria-labelledby="evidence-title">
+    <h2 id="evidence-title">근거</h2>
+    <figure>
+      <img src="charts/hist.png" alt="그림 1: 가격 구간별 게임 수 히스토그램" loading="lazy">
+      <figcaption>그림 1 : 0~5,000 구간이 11개로 가장 많다</figcaption>
+    </figure>
+    <figure>
+      <img src="charts/by_category.png" alt="그림 2: 출시일별 평균 가격 막대그래프" loading="lazy">
+      <figcaption>그림 2 : 출시일과 금액은 상관관계가 있다고 보기 어렵다. - 비교할 날짜가 2개(n = 15, n = 10)뿐이고 2026.09.25는 자료가 없다</figcaption>
+    </figure>
+    <p class="limit">연습 사이트의 임의 값이고, 목록 1~3페이지만 모은 것이다</p>
+    <p class="source">Steam 최신 게임 목록 1~3페이지 · 2026-09-28 수집 · 49개</p>
+  </section>
+</main>
+<script>
+  // 목록과 개수 글자가 들어갈 자리를 찾는다
+  const list = document.getElementById("list");
+  const count = document.getElementById("count");
+
+  // 글자 한 줄짜리 요소를 만든다(값은 textContent 로 넣어 그대로 보이게 한다)
+  function line(tag, className, text) {
+    const el = document.createElement(tag);
+    el.className = className;
+    el.textContent = text;
+    return el;
+  }
+
+  // 가격 글자: 숫자면 뒤에 "원"을 붙이고, "무료" 같은 글씨는 그대로 둔다
+  function priceText(price) {
+    return typeof price === "number" ? price + "원" : String(price);
+  }
+
+  // 정렬용 가격 값: 숫자는 그대로, "무료"는 0, 그 밖의 글씨는 맨 뒤로 보낸다(화면에 보이는 값은 바꾸지 않는다)
+  function sortKey(price) {
+    if (typeof price === "number") return price;
+    if (price === "무료") return 0;
+    return Infinity;
+  }
+
+  // 칸 값 읽기: 비어 있으면 null(조건 없음), 아니면 숫자
+  function readNumber(el) {
+    const v = el.value.trim();
+    return v === "" || Number.isNaN(Number(v)) ? null : Number(v);
+  }
+
+  // 예산 조건: 예산이 없으면 통과, 있으면 가격(무료=0)이 예산 이하일 때 통과
+  function budgetOk(item, budget) {
+    return budget === null || sortKey(item.price) <= budget;
+  }
+
+  // 별점 조건: 없으면 통과, 있으면 data.json 의 숫자 rating 이 그 값 이상일 때만 통과(값이 없으면 통과하지 못함)
+  function ratingOk(item, minRating) {
+    return minRating === null || (typeof item.rating === "number" && item.rating >= minRating);
+  }
+
+  // 가격 낮은 순으로 세운 복사본을 돌려준다(무료=0)
+  function byPriceAsc(items) {
+    return [...items].sort((x, y) => sortKey(x.price) - sortKey(y.price));
+  }
+
+  // 맞는 카드가 없을 때 보여 줄 안내 한 문장을 data.json 전체로 계산해 만든다(조건은 바꾸지 않는다)
+  function emptyMessage(all, budget, minRating) {
+    // 1) 예산만 올린다면: 별점 조건은 그대로 두고 가장 싼 후보를 찾는다
+    let budgetPart;
+    if (budget === null) {
+      budgetPart = "예산 조건은 걸려 있지 않고";
+    } else {
+      const pool = byPriceAsc(all.filter((it) => ratingOk(it, minRating)));
+      budgetPart = pool.length === 0
+        ? "예산만 올려서는 맞는 후보가 없고"
+        : "예산만 올리면 가장 싼 후보는 " + pool[0].name + "(" + priceText(pool[0].price) + ")이고";
+    }
+    // 2) 별점만 한 칸 낮춘다면: 예산 조건은 그대로 두고 개수를 센다(1에서 낮추면 별점 조건 없음)
+    let ratingPart;
+    if (minRating === null) {
+      ratingPart = "별점 조건은 걸려 있지 않습니다.";
+    } else {
+      const lower = minRating - 1 >= 1 ? minRating - 1 : null;
+      const n = all.filter((it) => budgetOk(it, budget) && ratingOk(it, lower)).length;
+      ratingPart = (lower === null ? "별점 조건을 빼면 " : "별점을 " + lower + "로 낮추면 ") + n + "개입니다.";
+    }
+    return "조건에 맞는 카드가 없습니다. " + budgetPart + ", " + ratingPart;
+  }
+
+  // 카드 목록을 주어진 순서로 다시 그린다(total 은 전체 개수, message 는 0개일 때 안내)
+  function render(items, total, message) {
+    // 이전 카드를 모두 지운다
+    list.replaceChildren();
+    for (const item of items) {
+        const card = document.createElement("li");
+        card.className = "card";
+        card.appendChild(line("h2", "name", item.name));
+        card.appendChild(line("p", "price", priceText(item.price)));
+        // 출시일은 data.json 에 값이 있을 때만 보여 준다
+        if (item.release_date) {
+          card.appendChild(line("p", "date", "출시일 " + item.release_date));
+        }
+        // 원래 화면으로 가는 링크를 새 창으로 연다
+        const a = line("a", "link", "원래 화면 보기");
+        a.href = item.detail_url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        card.appendChild(a);
+        list.appendChild(card);
+    }
+    // 개수는 실제로 그려진 카드 수로 적는다
+    const shown = list.children.length;
+    count.textContent = "조건에 맞는 " + shown + "개 / 전체 " + total + "개";
+    // 맞는 카드가 없으면 카드 자리에 안내를 보여 준다
+    if (shown === 0 && message) {
+      list.appendChild(line("li", "empty", message));
+    }
+  }
+
+  // data.json 을 읽어 카드 목록을 그린다
+  fetch("data/data.json")
+    .then((res) => {
+      if (!res.ok) throw new Error("data.json 을 읽지 못했습니다 (" + res.status + ")");
+      return res.json();
+    })
+    .then((items) => {
+      // 지금 화면에 쓰는 목록과 안내 문장(처음에는 전체, 조건 없음)
+      let current = items;
+      let message = "";
+      // 처음에는 data.json 순서 그대로 그린다
+      render(current, items.length, message);
+
+      // 정렬 단추 두 개를 모아 둔다
+      const sortButtons = document.querySelectorAll(".sort button");
+      // 누른 단추만 눌린 상태로 표시한다(null 이면 모두 해제)
+      function markSort(pressed) {
+        for (const b of sortButtons) b.setAttribute("aria-pressed", String(b === pressed));
+      }
+
+      // 두 조건을 모두 만족하는 카드만 남기고 가격 낮은 순으로 세운다
+      const budgetEl = document.getElementById("budget");
+      const ratingEl = document.getElementById("minRating");
+      function applyFilter() {
+        const budget = readNumber(budgetEl);
+        const minRating = readNumber(ratingEl);
+        current = byPriceAsc(items.filter((it) => budgetOk(it, budget) && ratingOk(it, minRating)));
+        message = current.length === 0 ? emptyMessage(items, budget, minRating) : "";
+        render(current, items.length, message);
+        // 가격 낮은 순으로 세웠으니 낮은 순 단추를 눌린 상태로 둔다
+        markSort(sortButtons[0]);
+      }
+
+      // [적용] 단추로도 적용한다
+      document.getElementById("filter").addEventListener("submit", (e) => {
+        e.preventDefault();
+        applyFilter();
+      });
+      // 칸의 값이 바뀌면 [적용]을 누르지 않아도 바로 적용한다(예산은 한 글자 칠 때마다, 별점은 고를 때)
+      budgetEl.addEventListener("input", applyFilter);
+      ratingEl.addEventListener("change", applyFilter);
+
+      // 정렬 단추를 누르면 지금 목록의 복사본을 정렬해 다시 그린다(원래 목록은 그대로 둔다)
+      for (const btn of sortButtons) {
+        btn.addEventListener("click", () => {
+          const dir = btn.dataset.order === "asc" ? 1 : -1;
+          const sorted = [...current].sort((x, y) => (sortKey(x.price) - sortKey(y.price)) * dir);
+          render(sorted, items.length, message);
+          markSort(btn);
+        });
+      }
+    })
+    .catch((err) => {
+      // 읽기에 실패하면 이유를 화면에 적는다
+      count.textContent = "";
+      list.appendChild(line("li", "error", err.message));
+    });
+</script>
+</body>
+</html>
